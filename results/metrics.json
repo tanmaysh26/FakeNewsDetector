@@ -1,0 +1,40 @@
+{
+  "experiment_1_welfake_validation": {
+    "accuracy": 0.9723618090452262,
+    "precision": 0.9679199724042773,
+    "recall": 0.971270335756317,
+    "f1": 0.9695922598479613,
+    "confusion_matrix": [
+      [
+        6772,
+        186
+      ],
+      [
+        166,
+        5612
+      ]
+    ],
+    "classification_report": "              precision    recall  f1-score   support\n\n        TRUE     0.9761    0.9733    0.9747      6958\n        FAKE     0.9679    0.9713    0.9696      5778\n\n    accuracy                         0.9724     12736\n   macro avg     0.9720    0.9723    0.9721     12736\nweighted avg     0.9724    0.9724    0.9724     12736\n",
+    "n_samples": 12736,
+    "n_train": 50940,
+    "n_validation": 12736
+  },
+  "experiment_2_polyglot_external": {
+    "accuracy": 0.6417075564278705,
+    "precision": 0.5827536422102638,
+    "recall": 0.9039087947882736,
+    "f1": 0.7086425664352406,
+    "confusion_matrix": [
+      [
+        2099,
+        3179
+      ],
+      [
+        472,
+        4440
+      ]
+    ],
+    "classification_report": "              precision    recall  f1-score   support\n\n        TRUE     0.8164    0.3977    0.5348      5278\n        FAKE     0.5828    0.9039    0.7086      4912\n\n    accuracy                         0.6417     10190\n   macro avg     0.6996    0.6508    0.6217     10190\nweighted avg     0.7038    0.6417    0.6186     10190\n",
+    "n_samples": 10190
+  }
+}

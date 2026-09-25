@@ -1,0 +1,18 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+# Datasets (too large for GitHub; download separately, see README)
+data/welfake/*
+data/polyglot/*
+!data/welfake/.gitkeep
+!data/polyglot/.gitkeep
+
+# Trained model (can exceed GitHub's 100 MB limit; rebuild with src/train.py)
+models/*
+!models/.gitkeep
+
+# Test articles
+*_test.txt
