@@ -1,4 +1,4 @@
-"""Predict whether a single article is FAKE or TRUE with the saved model.
+"""Classify a single article as FAKE or TRUE with every saved model.
 
 Usage:
     python src/predict.py --text "Article text here..."
@@ -7,7 +7,7 @@ Usage:
     python src/predict.py                  # paste the article, then Ctrl-D
                                            # (Windows: Ctrl-Z, then Enter)
 
-The saved pipeline applies the same preprocessing and TF-IDF vocabulary used
+Each saved pipeline applies the same preprocessing and TF-IDF vocabulary used
 in training; nothing is re-fitted.
 """
 
@@ -15,7 +15,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from utils import CLASS_NAMES, load_model, print_header
+from utils import CLASS_NAMES, LABEL_FAKE, MODEL_NAMES, classifier_step, load_model
 
 
 def read_article(args):
@@ -33,10 +33,18 @@ def read_article(args):
 
 
 def predict_article(model, article):
-    label = int(model.predict([article])[0])
-    score = float(model.decision_function([article])[0])
+    """Returns (label, formatted score, what the score means, known terms)."""
+    label = CLASS_NAMES[int(model.predict([article])[0])]
     known_terms = model.named_steps["tfidf"].transform([article]).nnz
-    return CLASS_NAMES[label], score, known_terms
+    clf = classifier_step(model)
+    if hasattr(clf, "predict_proba"):
+        fake_col = list(clf.classes_).index(LABEL_FAKE)
+        score = float(model.predict_proba([article])[0][fake_col])
+        return (label, f"{score:.3f}",
+                "P(FAKE): share of FAKE training articles in the leaf", known_terms)
+    score = float(model.decision_function([article])[0])
+    return (label, f"{score:+.3f}",
+            "positive = FAKE, negative = TRUE; further from 0 = more confident", known_terms)
 
 
 def main():
@@ -50,18 +58,16 @@ def main():
     if not article:
         sys.exit("No article text provided.")
 
-    model = load_model()
-    label, score, known_terms = predict_article(model, article)
+    print(f"\n{'Model':<15} {'Prediction':<11} {'Score':>7}   Meaning")
+    for name in MODEL_NAMES:
+        label, score, meaning, known_terms = predict_article(load_model(name), article)
+        print(f"{MODEL_NAMES[name]:<15} {label:<11} {score:>7}   {meaning}")
 
-    print("\n")
-    print(f"Prediction:     {label}")
-    print(f"Decision score: {score:+.3f}  (positive = FAKE, negative = TRUE; "
-          f"further from 0 = more confident)")
-    
+    # Both models share one vocabulary, so the match count is the same.
+    print(f"\nTerms matching the training vocabulary: {known_terms}")
     if known_terms < 20:
         print("Warning: very little of this text matches the training vocabulary, "
-              "so the prediction is unreliable.")
-    
+              "so the predictions are unreliable.")
 
 
 if __name__ == "__main__":

@@ -1,16 +1,21 @@
-"""Experiment 1: WELFake -> 80/20 split -> TF-IDF -> Linear SVM -> validation.
+"""Experiment 1: WELFake -> 80/20 split -> TF-IDF -> Linear SVM and
+Decision Tree -> validation.
 
-The pipeline trained here (TF-IDF fitted on the WELFake training split only)
-is saved and reused unchanged for Experiment 2.
+One TF-IDF vectorizer is fitted on the WELFake training split only, and both
+classifiers are trained on its features, so the comparison is like-for-like.
+Each trained pipeline is saved and reused unchanged for Experiment 2.
 """
 
 from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
 
 from utils import (
-    MODEL_PATH,
+    MODEL_NAMES,
+    MODEL_PATHS,
     RANDOM_STATE,
     RESULTS_DIR,
-    build_pipeline,
+    build_classifiers,
+    build_vectorizer,
     evaluate_model,
     load_welfake,
     metrics_table,
@@ -22,11 +27,19 @@ from utils import (
 )
 
 
-def train_model(X_train, y_train):
-    """Pipeline.fit calls tfidf.fit_transform(X_train), then svm.fit(...)."""
-    model = build_pipeline()
-    model.fit(X_train, y_train)
-    return model
+def train_models(X_train, y_train):
+    """Fit TF-IDF once on the training split, then each classifier on it.
+    Returns {name: Pipeline(tfidf, classifier)}."""
+    tfidf = build_vectorizer()
+    features = tfidf.fit_transform(X_train)
+    print(f"[TF-IDF] vocabulary size (fitted on training split only): "
+          f"{len(tfidf.vocabulary_)}")
+    models = {}
+    for name, clf in build_classifiers().items():
+        print(f"[Train] fitting {MODEL_NAMES[name]}...")
+        clf.fit(features, y_train)
+        models[name] = Pipeline([("tfidf", tfidf), (name, clf)])
+    return models
 
 
 def main():
@@ -37,25 +50,27 @@ def main():
     )
     print(f"[Split] train: {len(X_train)} | validation: {len(X_val)}")
 
-    model = train_model(X_train, y_train)
-    print(f"[TF-IDF] vocabulary size (fitted on training split only): "
-          f"{len(model.named_steps['tfidf'].vocabulary_)}")
+    models = train_models(X_train, y_train)
 
-    # predict() only calls tfidf.transform() on the validation texts.
-    y_pred = model.predict(X_val)
-    metrics = evaluate_model(y_val, y_pred)
+    results = {}
+    for name, model in models.items():
+        # predict() only calls tfidf.transform() on the validation texts.
+        metrics = evaluate_model(y_val, model.predict(X_val))
+        results[name] = metrics
+        plot_confusion_matrix(metrics["confusion_matrix"],
+                              f"WELFake Validation — {MODEL_NAMES[name]}",
+                              RESULTS_DIR / f"welfake_validation_confusion_matrix_{name}.png")
+        save_model(model, name)
+        save_metrics("experiment_1_welfake_validation", name, {
+            **metrics, "n_train": int(len(X_train)), "n_validation": int(len(X_val))})
 
-    plot_confusion_matrix(metrics["confusion_matrix"],
-                          "WELFake Validation — Confusion Matrix",
-                          RESULTS_DIR / "welfake_validation_confusion_matrix.png")
-    save_model(model)
-    save_metrics("experiment_1_welfake_validation", {
-        **metrics, "n_train": int(len(X_train)), "n_validation": int(len(X_val))})
+        print_header(f"EXPERIMENT 1 — WELFAKE VALIDATION — {MODEL_NAMES[name].upper()}")
+        print_metrics(metrics)
 
-    print_header("EXPERIMENT 1 — WELFAKE VALIDATION")
-    print_metrics(metrics)
-    print(metrics_table({"WELFake Validation": metrics}))
-    print(f"\nModel saved to: {MODEL_PATH.relative_to(MODEL_PATH.parents[1])}")
+    print_header("MODEL COMPARISON — WELFAKE VALIDATION")
+    print(metrics_table({MODEL_NAMES[n]: m for n, m in results.items()}))
+    for name, path in MODEL_PATHS.items():
+        print(f"{MODEL_NAMES[name]} saved to: {path.relative_to(path.parents[1])}")
 
 
 if __name__ == "__main__":

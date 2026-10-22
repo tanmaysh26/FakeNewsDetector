@@ -24,6 +24,7 @@ from sklearn.metrics import (
 )
 from sklearn.pipeline import Pipeline
 from sklearn.svm import LinearSVC
+from sklearn.tree import DecisionTreeClassifier
 
 # ---------------------------------------------------------------------------
 # Paths and constants
@@ -33,7 +34,11 @@ WELFAKE_DIR = ROOT / "data" / "welfake"
 POLYGLOT_DIR = ROOT / "data" / "polyglot"
 MODELS_DIR = ROOT / "models"
 RESULTS_DIR = ROOT / "results"
-MODEL_PATH = MODELS_DIR / "fake_news_tfidf_svm.joblib"
+MODEL_PATHS = {
+    "svm": MODELS_DIR / "fake_news_tfidf_svm.joblib",
+    "decision_tree": MODELS_DIR / "fake_news_tfidf_decision_tree.joblib",
+}
+MODEL_NAMES = {"svm": "Linear SVM", "decision_tree": "Decision Tree"}
 METRICS_PATH = RESULTS_DIR / "metrics.json"
 
 RANDOM_STATE = 42
@@ -298,27 +303,42 @@ def load_polyglot():
 # ---------------------------------------------------------------------------
 # Model
 # ---------------------------------------------------------------------------
-def build_pipeline():
-    """TF-IDF -> LinearSVC. prepare_text runs inside the vectorizer, so the
-    saved pipeline applies identical preprocessing to any new dataset."""
-    return Pipeline([
-        ("tfidf", TfidfVectorizer(
-            preprocessor=prepare_text,  # also lowercases
-            ngram_range=(1, 2),
-            min_df=2,
-            max_df=0.95,
-            sublinear_tf=True,
-        )),
-        ("svm", LinearSVC(C=1.0, random_state=RANDOM_STATE, max_iter=5000)),
-    ])
+def build_vectorizer():
+    """prepare_text runs inside the vectorizer, so every saved pipeline
+    applies identical preprocessing to any new dataset."""
+    return TfidfVectorizer(
+        preprocessor=prepare_text,  # also lowercases
+        ngram_range=(1, 2),
+        min_df=2,
+        max_df=0.95,
+        sublinear_tf=True,
+    )
 
 
-def save_model(model, path=MODEL_PATH):
+def build_classifiers():
+    """Classifiers compared on the same TF-IDF features. Hyperparameters are
+    fixed in advance, never tuned on validation or PolyglotFakeFacts."""
+    return {
+        "svm": LinearSVC(C=1.0, random_state=RANDOM_STATE, max_iter=5000),
+        # min_samples_leaf=5 stops the tree from memorising single articles
+        # and gives leaves a meaningful FAKE proportion for predict_proba.
+        "decision_tree": DecisionTreeClassifier(min_samples_leaf=5,
+                                                random_state=RANDOM_STATE),
+    }
+
+
+def classifier_step(model):
+    return model.steps[-1][1]
+
+
+def save_model(model, name):
+    path = MODEL_PATHS[name]
     path.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(model, path)
 
 
-def load_model(path=MODEL_PATH):
+def load_model(name):
+    path = MODEL_PATHS[name]
     if not path.exists():
         raise FileNotFoundError(f"{path} not found. Run `python src/train.py` first.")
     return joblib.load(path)
@@ -354,9 +374,9 @@ def plot_confusion_matrix(cm, title, path):
     plt.close()
 
 
-def save_metrics(key, metrics, path=METRICS_PATH):
+def save_metrics(experiment, model_name, metrics, path=METRICS_PATH):
     data = json.loads(path.read_text()) if path.exists() else {}
-    data[key] = metrics
+    data.setdefault(experiment, {})[model_name] = metrics
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2))
 
