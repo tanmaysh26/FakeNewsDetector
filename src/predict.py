@@ -17,6 +17,13 @@ from pathlib import Path
 
 from utils import CLASS_NAMES, LABEL_FAKE, MODEL_NAMES, classifier_step, load_model
 
+# What P(FAKE) means for each model that outputs probabilities.
+PROBA_MEANINGS = {
+    "decision_tree": "P(FAKE): share of FAKE training articles in the leaf",
+    "logistic_regression": "P(FAKE) from the logistic model",
+    "naive_bayes": "P(FAKE) from Naive Bayes",
+}
+
 
 def read_article(args):
     if args.file:
@@ -32,7 +39,7 @@ def read_article(args):
     return f"{args.title or ''} {body}".strip()
 
 
-def predict_article(model, article):
+def predict_article(model, name, article):
     """Returns (label, formatted score, what the score means, known terms)."""
     label = CLASS_NAMES[int(model.predict([article])[0])]
     known_terms = model.named_steps["tfidf"].transform([article]).nnz
@@ -40,8 +47,7 @@ def predict_article(model, article):
     if hasattr(clf, "predict_proba"):
         fake_col = list(clf.classes_).index(LABEL_FAKE)
         score = float(model.predict_proba([article])[0][fake_col])
-        return (label, f"{score:.3f}",
-                "P(FAKE): share of FAKE training articles in the leaf", known_terms)
+        return (label, f"{score:.3f}", PROBA_MEANINGS[name], known_terms)
     score = float(model.decision_function([article])[0])
     return (label, f"{score:+.3f}",
             "positive = FAKE, negative = TRUE; further from 0 = more confident", known_terms)
@@ -58,12 +64,12 @@ def main():
     if not article:
         sys.exit("No article text provided.")
 
-    print(f"\n{'Model':<15} {'Prediction':<11} {'Score':>7}   Meaning")
+    print(f"\n{'Model':<20} {'Prediction':<11} {'Score':>7}   Meaning")
     for name in MODEL_NAMES:
-        label, score, meaning, known_terms = predict_article(load_model(name), article)
-        print(f"{MODEL_NAMES[name]:<15} {label:<11} {score:>7}   {meaning}")
+        label, score, meaning, known_terms = predict_article(load_model(name), name, article)
+        print(f"{MODEL_NAMES[name]:<20} {label:<11} {score:>7}   {meaning}")
 
-    # Both models share one vocabulary, so the match count is the same.
+    # All models share one vocabulary, so the match count is the same.
     print(f"\nTerms matching the training vocabulary: {known_terms}")
     if known_terms < 20:
         print("Warning: very little of this text matches the training vocabulary, "

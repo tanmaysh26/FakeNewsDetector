@@ -7,8 +7,10 @@ __pycache__/
 # Datasets (too large for GitHub; download separately, see README)
 data/welfake/*
 data/polyglot/*
+data/vldbench/*
 !data/welfake/.gitkeep
 !data/polyglot/.gitkeep
+!data/vldbench/.gitkeep
 
 # Trained model (can exceed GitHub's 100 MB limit; rebuild with src/train.py)
 models/*

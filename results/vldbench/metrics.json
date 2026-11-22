@@ -1,0 +1,70 @@
+{
+  "dataset": "vector-institute/VLDBench (text_label, headline + article_text)",
+  "positive_class": "FAKE = 'Likely' disinformation",
+  "split": {
+    "method": "80/20 stratified random split",
+    "random_state": 42,
+    "n_train": 25071,
+    "n_test": 6268,
+    "test_outlets_seen_in_training": 0.9996809189534142
+  },
+  "linear_svm": {
+    "C": 1.0,
+    "accuracy": 0.8144543714103383,
+    "precision": 0.8337497597539881,
+    "recall": 0.9357204486626403,
+    "f1": 0.8817969305823763,
+    "confusion_matrix": [
+      [
+        767,
+        865
+      ],
+      [
+        298,
+        4338
+      ]
+    ],
+    "classification_report": "              precision    recall  f1-score   support\n\n        TRUE     0.7202    0.4700    0.5688      1632\n        FAKE     0.8337    0.9357    0.8818      4636\n\n    accuracy                         0.8145      6268\n   macro avg     0.7770    0.7028    0.7253      6268\nweighted avg     0.8042    0.8145    0.8003      6268\n",
+    "n_samples": 6268,
+    "averaged": {
+      "weighted": {
+        "precision": 0.8041816153625924,
+        "recall": 0.8144543714103383,
+        "f1": 0.8002967032418007
+      },
+      "macro": {
+        "precision": 0.776968776590609,
+        "recall": 0.7028479694293593,
+        "f1": 0.7252885283241878
+      }
+    }
+  },
+  "baselines": {
+    "majority_class": {
+      "accuracy": 0.7396298659859605,
+      "weighted": {
+        "precision": 0.5470523386584099,
+        "recall": 0.7396298659859605,
+        "f1": 0.6289295779000207
+      },
+      "macro": {
+        "precision": 0.36981493299298024,
+        "recall": 0.5,
+        "f1": 0.42516507703595013
+      }
+    },
+    "outlet_majority": {
+      "accuracy": 0.74234205488194,
+      "weighted": {
+        "precision": 0.7030718827770617,
+        "recall": 0.74234205488194,
+        "f1": 0.6467871285169418
+      },
+      "macro": {
+        "precision": 0.664545561090891,
+        "recall": 0.5135462133516047,
+        "f1": 0.4592972534023403
+      }
+    }
+  }
+}

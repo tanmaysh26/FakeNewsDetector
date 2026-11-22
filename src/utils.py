@@ -1,4 +1,5 @@
-"""Shared utilities for the TF-IDF + Linear SVM fake news project."""
+"""Shared utilities for the TF-IDF fake news project (Linear SVM, Decision
+Tree, Logistic Regression, Naive Bayes)."""
 
 import html
 import json
@@ -14,6 +15,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     accuracy_score,
     classification_report,
@@ -22,6 +24,7 @@ from sklearn.metrics import (
     precision_score,
     recall_score,
 )
+from sklearn.naive_bayes import MultinomialNB
 from sklearn.pipeline import Pipeline
 from sklearn.svm import LinearSVC
 from sklearn.tree import DecisionTreeClassifier
@@ -32,13 +35,18 @@ from sklearn.tree import DecisionTreeClassifier
 ROOT = Path(__file__).resolve().parent.parent
 WELFAKE_DIR = ROOT / "data" / "welfake"
 POLYGLOT_DIR = ROOT / "data" / "polyglot"
+VLDBENCH_DIR = ROOT / "data" / "vldbench"
 MODELS_DIR = ROOT / "models"
 RESULTS_DIR = ROOT / "results"
 MODEL_PATHS = {
     "svm": MODELS_DIR / "fake_news_tfidf_svm.joblib",
     "decision_tree": MODELS_DIR / "fake_news_tfidf_decision_tree.joblib",
+    "logistic_regression": MODELS_DIR / "fake_news_tfidf_logistic_regression.joblib",
+    "naive_bayes": MODELS_DIR / "fake_news_tfidf_naive_bayes.joblib",
 }
-MODEL_NAMES = {"svm": "Linear SVM", "decision_tree": "Decision Tree"}
+MODEL_NAMES = {"svm": "Linear SVM", "decision_tree": "Decision Tree",
+               "logistic_regression": "Logistic Regression",
+               "naive_bayes": "Naive Bayes"}
 METRICS_PATH = RESULTS_DIR / "metrics.json"
 
 RANDOM_STATE = 42
@@ -57,6 +65,10 @@ CLASS_NAMES = ["TRUE", "FAKE"]
 #     counts of 35,028 real and 37,106 fake articles.
 # So in the actual file: 0 = real, 1 = fake.
 WELFAKE_LABEL_MAP = {0: LABEL_TRUE, 1: LABEL_FAKE}
+
+# The only PolyglotFakeFacts files that are read. Other files in the folder
+# (20.xlsx / 80.xlsx splits, older copies) would duplicate articles.
+POLYGLOT_FILES = ["Fake.xlsx", "Real.xlsx"]
 
 # PolyglotFakeFacts: the documentation lists these fields (exact header
 # spelling is not documented, so columns are auto-detected and printed):
@@ -179,6 +191,44 @@ def load_welfake():
     return out["text"].reset_index(drop=True), out["label"].to_numpy()
 
 
+# VLDBench (vector-institute/VLDBench on Hugging Face). text_label is the
+# text-only label; multimodal_label (text + image) is NOT used. The paper
+# defines "Likely" as Likely Disinformation and "Unlikely" as Unlikely
+# Disinformation, and the official text-only script (code/llama3.2-nlp.py)
+# scores predictions against text_label.
+VLDBENCH_LABEL_MAP = {"Likely": LABEL_FAKE, "Unlikely": LABEL_TRUE}
+
+
+def load_vldbench():
+    """Load VLDBench text only. Returns a DataFrame with unique_id, outlet,
+    text (headline + article_text) and label. The image columns are never read."""
+    files = _single_data_file(VLDBENCH_DIR, ["*.parquet"])
+    cols = ["unique_id", "outlet", "headline", "article_text", "text_label"]
+    df = pd.concat([pd.read_parquet(f, columns=cols) for f in files], ignore_index=True)
+    print(f"[VLDBench] files: {[f.name for f in files]} | rows: {len(df)} | using columns: {cols}")
+    print(f"[VLDBench] missing values: {df.isna().sum().to_dict()}")
+    print(f"[VLDBench] raw text_label values: {df['text_label'].value_counts(dropna=False).to_dict()}")
+
+    unknown = set(df["text_label"].dropna().unique()) - set(VLDBENCH_LABEL_MAP)
+    if unknown:
+        raise ValueError(f"Unexpected VLDBench text_label values: {unknown}")
+
+    out = pd.DataFrame({
+        "unique_id": df["unique_id"],
+        "outlet": df["outlet"],
+        "text": combine_title_text(df["headline"], df["article_text"]),
+        "label": df["text_label"].map(VLDBENCH_LABEL_MAP),
+    }).dropna(subset=["label"])
+    before = len(out)
+    out = out[out["text"].str.len() > 0]
+    # Same rule as WELFake: identical texts must not land in both train and test.
+    out = out.drop_duplicates(subset="text")
+    out["label"] = out["label"].astype(int)
+    print(f"[VLDBench] removed {before - len(out)} empty/duplicate rows | final: {len(out)} | "
+          f"TRUE={int((out.label == LABEL_TRUE).sum())}, FAKE={int((out.label == LABEL_FAKE).sum())}")
+    return out.reset_index(drop=True)
+
+
 SOURCE_FILE_COL = "__source_file__"
 
 
@@ -225,7 +275,14 @@ def _map_polyglot_labels(series):
 
 def load_polyglot():
     """Load PolyglotFakeFacts, inspect its structure, return (texts, labels)."""
-    files = _single_data_file(POLYGLOT_DIR, ["*.xlsx", "*.xls", "*.csv"])
+    files = [POLYGLOT_DIR / name for name in POLYGLOT_FILES]
+    missing = [f.name for f in files if not f.exists()]
+    if missing:
+        raise FileNotFoundError(f"Missing PolyglotFakeFacts file(s) in {POLYGLOT_DIR}: {missing}")
+    ignored = sorted(f.name for f in POLYGLOT_DIR.iterdir()
+                     if f.suffix in {".xlsx", ".xls", ".csv"} and f.name not in POLYGLOT_FILES)
+    if ignored:
+        print(f"[Polyglot] ignoring other files in {POLYGLOT_DIR.name}/: {ignored}")
     frames = []
     for path in files:
         if path.suffix == ".csv":
@@ -315,15 +372,25 @@ def build_vectorizer():
     )
 
 
+def build_svm():
+    return LinearSVC(C=1.0, random_state=RANDOM_STATE, max_iter=5000)
+
+
 def build_classifiers():
     """Classifiers compared on the same TF-IDF features. Hyperparameters are
     fixed in advance, never tuned on validation or PolyglotFakeFacts."""
     return {
-        "svm": LinearSVC(C=1.0, random_state=RANDOM_STATE, max_iter=5000),
+        "svm": build_svm(),
         # min_samples_leaf=5 stops the tree from memorising single articles
         # and gives leaves a meaningful FAKE proportion for predict_proba.
         "decision_tree": DecisionTreeClassifier(min_samples_leaf=5,
                                                 random_state=RANDOM_STATE),
+        # Default regularisation strength, matching the SVM's C=1.0.
+        "logistic_regression": LogisticRegression(C=1.0, solver="liblinear",
+                                                  max_iter=1000,
+                                                  random_state=RANDOM_STATE),
+        # Standard Laplace smoothing; TF-IDF weights are non-negative, as required.
+        "naive_bayes": MultinomialNB(alpha=1.0),
     }
 
 
@@ -397,12 +464,13 @@ def print_metrics(metrics):
     print("\n" + metrics["classification_report"])
 
 
-def metrics_table(columns):
-    """columns: dict of {column title: metrics dict} -> Markdown table."""
-    names = list(columns)
-    lines = ["| Metric | " + " | ".join(names) + " |",
-             "|---|" + "---:|" * len(names)]
-    for label, key in [("Accuracy", "accuracy"), ("Precision", "precision"),
-                       ("Recall", "recall"), ("F1-score", "f1")]:
-        lines.append(f"| {label} | " + " | ".join(f"{columns[n][key]:.4f}" for n in names) + " |")
+def metrics_table(rows):
+    """rows: dict of {row title: metrics dict} -> Markdown table,
+    one row per model/dataset and one column per metric."""
+    keys = [("Accuracy", "accuracy"), ("Precision", "precision"),
+            ("Recall", "recall"), ("F1-score", "f1")]
+    lines = ["| Model | " + " | ".join(label for label, _ in keys) + " |",
+             "|---|" + "---:|" * len(keys)]
+    for name, m in rows.items():
+        lines.append(f"| {name} | " + " | ".join(f"{m[k]:.4f}" for _, k in keys) + " |")
     return "\n".join(lines)

@@ -1,8 +1,8 @@
-"""Experiment 1: WELFake -> 80/20 split -> TF-IDF -> Linear SVM and
-Decision Tree -> validation.
+"""Experiment 1: WELFake -> 80/20 split -> TF-IDF -> Linear SVM, Decision
+Tree, Logistic Regression and Naive Bayes -> validation.
 
-One TF-IDF vectorizer is fitted on the WELFake training split only, and both
-classifiers are trained on its features, so the comparison is like-for-like.
+One TF-IDF vectorizer is fitted on the WELFake training split only, and every
+classifier is trained on its features, so the comparison is like-for-like.
 Each trained pipeline is saved and reused unchanged for Experiment 2.
 """
 

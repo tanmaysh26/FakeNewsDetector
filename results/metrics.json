@@ -39,6 +39,46 @@
       "n_samples": 12736,
       "n_train": 50940,
       "n_validation": 12736
+    },
+    "logistic_regression": {
+      "accuracy": 0.9556375628140703,
+      "precision": 0.9496291185095739,
+      "recall": 0.9527518172377986,
+      "f1": 0.9511879049676026,
+      "confusion_matrix": [
+        [
+          6666,
+          292
+        ],
+        [
+          273,
+          5505
+        ]
+      ],
+      "classification_report": "              precision    recall  f1-score   support\n\n        TRUE     0.9607    0.9580    0.9593      6958\n        FAKE     0.9496    0.9528    0.9512      5778\n\n    accuracy                         0.9556     12736\n   macro avg     0.9551    0.9554    0.9553     12736\nweighted avg     0.9557    0.9556    0.9556     12736\n",
+      "n_samples": 12736,
+      "n_train": 50940,
+      "n_validation": 12736
+    },
+    "naive_bayes": {
+      "accuracy": 0.851287688442211,
+      "precision": 0.948084910013844,
+      "recall": 0.7111457251644168,
+      "f1": 0.8126977848101266,
+      "confusion_matrix": [
+        [
+          6733,
+          225
+        ],
+        [
+          1669,
+          4109
+        ]
+      ],
+      "classification_report": "              precision    recall  f1-score   support\n\n        TRUE     0.8014    0.9677    0.8767      6958\n        FAKE     0.9481    0.7111    0.8127      5778\n\n    accuracy                         0.8513     12736\n   macro avg     0.8747    0.8394    0.8447     12736\nweighted avg     0.8679    0.8513    0.8477     12736\n",
+      "n_samples": 12736,
+      "n_train": 50940,
+      "n_validation": 12736
     }
   },
   "experiment_2_polyglot_external": {
@@ -76,6 +116,42 @@
         ]
       ],
       "classification_report": "              precision    recall  f1-score   support\n\n        TRUE     0.5906    0.2113    0.3112      5278\n        FAKE     0.4986    0.8426    0.6265      4912\n\n    accuracy                         0.5156     10190\n   macro avg     0.5446    0.5269    0.4688     10190\nweighted avg     0.5462    0.5156    0.4632     10190\n",
+      "n_samples": 10190
+    },
+    "logistic_regression": {
+      "accuracy": 0.677134445534838,
+      "precision": 0.6209004174120453,
+      "recall": 0.8479234527687296,
+      "f1": 0.7168674698795181,
+      "confusion_matrix": [
+        [
+          2735,
+          2543
+        ],
+        [
+          747,
+          4165
+        ]
+      ],
+      "classification_report": "              precision    recall  f1-score   support\n\n        TRUE     0.7855    0.5182    0.6244      5278\n        FAKE     0.6209    0.8479    0.7169      4912\n\n    accuracy                         0.6771     10190\n   macro avg     0.7032    0.6831    0.6706     10190\nweighted avg     0.7061    0.6771    0.6690     10190\n",
+      "n_samples": 10190
+    },
+    "naive_bayes": {
+      "accuracy": 0.5395485770363101,
+      "precision": 0.6762820512820513,
+      "recall": 0.08591205211726384,
+      "f1": 0.15245664739884393,
+      "confusion_matrix": [
+        [
+          5076,
+          202
+        ],
+        [
+          4490,
+          422
+        ]
+      ],
+      "classification_report": "              precision    recall  f1-score   support\n\n        TRUE     0.5306    0.9617    0.6839      5278\n        FAKE     0.6763    0.0859    0.1525      4912\n\n    accuracy                         0.5395     10190\n   macro avg     0.6035    0.5238    0.4182     10190\nweighted avg     0.6008    0.5395    0.4277     10190\n",
       "n_samples": 10190
     }
   }
